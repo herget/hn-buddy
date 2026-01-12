@@ -13,5 +13,8 @@
     "@astrojs/cloudflare": "^12.5.0",
     "astro": "^5.7.4",
     "date-fns": "^4.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
   }
 }
