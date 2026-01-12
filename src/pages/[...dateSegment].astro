@@ -2,7 +2,7 @@
 // Imports from both files
 import '../styles/global.css';
 import GitHubButton from '../components/GitHubButton.astro';
-import SignupForm from '../components/SignupForm.astro';
+import SignupButton from '../components/SignupButton.astro';
 
 // Determine targetDate based on Astro.params.dateSegment
 const { dateSegment } = Astro.params; // e.g., "2024-07-22" or undefined for root
@@ -305,16 +305,13 @@ const pageTitle = `HN Buddy - ${pageTitleSuffix}`;
         <p>Daily digest of top Hacker News posts and comments</p>
         </div>
         <div class="header-actions">
+          <SignupButton />
           <a href="/about" class="header-story-link">About</a>
           <GitHubButton repo="herget/hn-buddy" />
         </div>
       </div>
     </header>
 
-    <div class="container">
-      <SignupForm />
-    </div>
-    
     <nav class="day-nav container">
       <div class="day-nav-inner">
         <a href={prevDayUrl} class={`nav-btn prev-day ${prevDayUrl === '#' || dateParseError ? 'disabled' : ''}`}>

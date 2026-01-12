@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import GitHubButton from '../components/GitHubButton.astro';
-import SignupForm from '../components/SignupForm.astro';
+import SignupButton from '../components/SignupButton.astro';
 
 const pageTitle = "HN Buddy - About";
 ---
@@ -58,6 +58,28 @@ const pageTitle = "HN Buddy - About";
       .back-link:hover {
         background-color: #e5e5e5;
       }
+      .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .header-content {
+        flex: 1;
+      }
+      .header-actions {
+        display: flex;
+        gap: 1rem;
+      }
+      @media (max-width: 640px) {
+        .header-container {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 1rem;
+        }
+        .header-actions {
+          width: 100%;
+        }
+      }
     </style>
   </head>
   <body>
@@ -68,6 +90,7 @@ const pageTitle = "HN Buddy - About";
           <p>Daily digest of top Hacker News posts and comments</p>
         </div>
         <div class="header-actions">
+          <SignupButton />
           <GitHubButton repo="herget/hn-buddy" />
         </div>
       </div>
@@ -101,10 +124,6 @@ const pageTitle = "HN Buddy - About";
         </p>
       </div>
     </main>
-
-    <div class="container">
-      <SignupForm />
-    </div>
 
     <footer>
       <div class="container">

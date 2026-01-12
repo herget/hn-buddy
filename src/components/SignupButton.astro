@@ -1,0 +1,305 @@
+---
+// Read the site key from environment variables
+const { env: cloudflareEnv } = Astro.locals.runtime;
+const turnstileSiteKey = cloudflareEnv.PUBLIC_TURNSTILE_SITE_KEY;
+
+if (!turnstileSiteKey) {
+  console.warn("PUBLIC_TURNSTILE_SITE_KEY is not set. Turnstile widget may not load correctly.");
+}
+---
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+<button id="openSignupModal" class="signup-btn">Subscribe</button>
+
+<div id="signupModal" class="modal-overlay" aria-hidden="true">
+  <div class="modal-content" role="dialog" aria-labelledby="modalTitle">
+    <button id="closeModal" class="modal-close" aria-label="Close">&times;</button>
+    <h3 id="modalTitle">Subscribe to the HN Buddy Daily Digest</h3>
+    <form id="subscribeForm">
+      <div class="form-group">
+        <label for="email">Email Address:</label>
+        <input type="email" id="email" name="email" required />
+      </div>
+
+      <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-callback="onTurnstileSuccess"></div>
+
+      <button type="submit" id="submitButton">Subscribe</button>
+      <p class="privacy-note">
+        Your email will only be used for the HN Buddy Daily Digest. I will not share it with anyone.
+      </p>
+    </form>
+    <div id="formMessage" role="alert"></div>
+  </div>
+</div>
+
+<script>
+  // Define Turnstile types for better TypeScript support
+  declare global {
+    interface Window {
+      turnstile?: {
+        render: (container: string | HTMLElement, params: TurnstileOptions) => string | undefined;
+        reset: (widgetId?: string) => void;
+        getResponse: (widgetId?: string) => string | undefined;
+        remove: (widgetId?: string) => void;
+      };
+      onTurnstileSuccess?: (token: string) => void;
+    }
+  }
+
+  interface TurnstileOptions {
+    sitekey: string;
+    action?: string;
+    cData?: string;
+    callback?: (token: string) => void;
+    'error-callback'?: () => void;
+    'expired-callback'?: () => void;
+    theme?: 'light' | 'dark' | 'auto';
+    tabindex?: number;
+  }
+
+  let turnstileToken: string | null = null;
+
+  function onTurnstileSuccessCallback(token: string) {
+    turnstileToken = token;
+  }
+  window.onTurnstileSuccess = onTurnstileSuccessCallback;
+
+  interface SubscribeResponse {
+    message: string;
+    success: boolean;
+    errorDetail?: any;
+  }
+
+  const openBtn = document.getElementById('openSignupModal') as HTMLButtonElement;
+  const modal = document.getElementById('signupModal') as HTMLDivElement;
+  const closeBtn = document.getElementById('closeModal') as HTMLButtonElement;
+  const form = document.getElementById('subscribeForm') as HTMLFormElement;
+  const formMessage = document.getElementById('formMessage') as HTMLDivElement;
+  const submitButton = document.getElementById('submitButton') as HTMLButtonElement;
+
+  // Open modal
+  openBtn.addEventListener('click', () => {
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  });
+
+  // Close modal
+  function closeModal() {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  closeBtn.addEventListener('click', closeModal);
+
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) {
+      closeModal();
+    }
+  });
+
+  // Form submission
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    formMessage.textContent = '';
+    formMessage.className = '';
+
+    const turnstileResponseFromForm = (form.elements.namedItem('cf-turnstile-response') as HTMLInputElement)?.value;
+
+    if (!turnstileResponseFromForm) {
+      formMessage.textContent = 'Please complete the security check.';
+      formMessage.className = 'error-message';
+      if (window.turnstile) window.turnstile.reset();
+      return;
+    }
+
+    submitButton.disabled = true;
+    submitButton.textContent = 'Subscribing...';
+
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json() as SubscribeResponse;
+
+      if (response.ok && result.success) {
+        formMessage.textContent = result.message || 'Successfully subscribed!';
+        formMessage.className = 'success-message';
+        form.reset();
+      } else {
+        formMessage.textContent = result.message || 'Subscription failed. Please try again.';
+        formMessage.className = 'error-message';
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      formMessage.textContent = 'An unexpected error occurred. Please try again later.';
+      formMessage.className = 'error-message';
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Subscribe';
+      if (window.turnstile) {
+        window.turnstile.reset();
+      }
+      turnstileToken = null;
+    }
+  });
+</script>
+
+<style>
+  .signup-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background-color: #f60;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  .signup-btn:hover {
+    background-color: #e05a00;
+  }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal-content {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 450px;
+    width: 90%;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    line-height: 1;
+    padding: 0.25rem;
+  }
+  .modal-close:hover {
+    color: #333;
+  }
+
+  .modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #333;
+    font-size: 1.5em;
+    text-align: center;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+    text-align: left;
+  }
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+    font-weight: 600;
+  }
+  .form-group input[type="email"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 1rem;
+  }
+
+  .cf-turnstile {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+  }
+
+  .modal-content button[type="submit"] {
+    background-color: #f60;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  .modal-content button[type="submit"]:hover {
+    background-color: #e05a00;
+  }
+  .modal-content button[type="submit"]:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  .privacy-note {
+    font-size: 0.875rem;
+    color: #777;
+    margin-top: 1.5rem;
+    line-height: 1.4;
+    text-align: left;
+  }
+
+  #formMessage {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  #formMessage:empty {
+    display: none;
+  }
+
+  .success-message {
+    background-color: #e6fffa;
+    color: #00796b;
+    border: 1px solid #b2dfdb;
+  }
+  .error-message {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #e57373;
+  }
+</style>
